@@ -1,4 +1,4 @@
-# MicroPython libraries for the first year hardware project
+#  MicroPython libraries for the first year hardware project
 
 This is an example project that can be used to install MicroPython libraries that are needed for
 the first year hardware project. You can also use this as a template for your own 
