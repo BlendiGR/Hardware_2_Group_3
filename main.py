@@ -1,6 +1,6 @@
 from fifo import Fifo
 from controls import Encoder
-from heartbeat_monitoring import Heartbeat_Monitor as hbmon
+from heartbeat_monitoring import HeartbeatMonitor
 from ui import UI
 from hrv_monitoring import HRV_Monitor
 import uasyncio as asyncio
@@ -9,12 +9,12 @@ import time
 class MainMenu:
     def __init__(self):
         self.running = False
-        self.monitor = hbmon()
+        self.monitor = HeartbeatMonitor(26, 200)
         self.hrv_monitor = HRV_Monitor(self.monitor)
         self.enc = Encoder()
         self.last_display_time = 0
         self.last_ppg_time = 0
-        self.options = ["HEARTRATE", "HRV ANALYSIS"]
+        self.options = ["HEARTRATE", "HRV ANALYSIS", "ADVANCED HRV", "HISTORY"]
         self.selected = 0
         self.current_menu = "main"
         
@@ -36,6 +36,7 @@ class MainMenu:
         while True:
             while self.enc.fifo.has_data():
                 fifo = self.enc.fifo.get()
+                print(self.selected)
                 if fifo == 1 and self.selected < len(self.options) - 1 and self.current_menu == "main":
                     self.selected += 1
                     self.draw_options()
@@ -75,7 +76,7 @@ class MainMenu:
                         self.draw_options()
                         
             if self.current_menu == "heart_rate" and self.running:
-                self.monitor.run()
+                self.monitor.process()
                 current_time = time.ticks_ms()
                 if time.ticks_diff(current_time, self.last_ppg_time) >= 50:
                     bpm = self.monitor.get_bpm()
