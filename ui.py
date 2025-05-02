@@ -1,5 +1,7 @@
 from machine import Pin, I2C
 from ssd1306 import SSD1306_I2C
+
+import json
 import time
 import uasyncio as asyncio
 
@@ -12,8 +14,10 @@ class UI:
         
         self.options = options
         self.selected = selected
-        self.bpm = bpm  # Kept for compatibility, but not used in draw_ppg
+        self.bpm = bpm 
         self.hrv_calculator = hrv_calculator
+        
+        self.latest_time = None
 
     def invert_text(self, text, x, y, selected=False):
         if selected:
@@ -62,7 +66,7 @@ class UI:
     def hrv_menu(self):
         self.oled.fill(0)
         self.oled.text("PLACE FINGER", 18, 16, 1)
-        self.oled.text("ON SENSOR", 10, 24, 1)
+        self.oled.text("ON SENSOR", 30, 24, 1)
         self.invert_text("PRESS TO START", 10, 40, True)
         self.oled.show()
         
@@ -80,10 +84,10 @@ class UI:
         self.oled.text(f"SDNN: {metrics['SDNN_MS']:.1f} ms", 4, 42, 1)
         self.invert_text("PRESS TO EXIT", 10, 53, True)
         self.oled.show()
-
+        
     async def loading_bar(self, seconds):
         self.oled.fill(0)
-        self.oled.text("Calculating HRV..", 4, 10, 1)
+        self.oled.text("MEASURING..", 4, 10, 1)
         bar_x, bar_y = 4, 30
         bar_width, bar_height = 120, 10
         self.oled.rect(bar_x, bar_y, bar_width, bar_height, 1)
@@ -97,3 +101,93 @@ class UI:
             await asyncio.sleep_ms(50)
         self.oled.fill_rect(bar_x, bar_y, bar_width, bar_height, 1)
         self.oled.show()
+        
+    def kubios_extract(self, json):
+        sorted_metrics = []
+        
+        # Decode MQTT byte string and parse JSON
+        health_metrics = json
+        
+        # Extract metrics from nested JSON structure
+        metrics = health_metrics["data"]["analysis"]
+        stress = metrics["stress_index"]
+        readiness = metrics["readiness"]
+        heart_rate = metrics["mean_hr_bpm"]
+        rmssd = metrics["rmssd_ms"]
+        pns_index = metrics["pns_index"]
+        sns_index = metrics["sns_index"]
+        time_stamp = metrics["create_timestamp"]
+        
+        self.latest_time = time_stamp
+        
+        # Append heart rate (BPM)
+        sorted_metrics.append({"HR": heart_rate})
+        
+        # Categorize Stress Index
+        if stress < 7:
+            sorted_metrics.append({"STRESS": "LOW"})
+        elif 7 <= stress <= 12:
+            sorted_metrics.append({"STRESS": "NORM"})
+        else:
+            sorted_metrics.append({"STRESS": "HIGH"})
+        
+        # Categorize RMSSD
+        if rmssd < 20:
+            sorted_metrics.append({"RMSSD": "LOW"})
+        elif 20 <= rmssd <= 50:
+            sorted_metrics.append({"RMSSD": "NORM"})
+        else:
+            sorted_metrics.append({"RMSSD": "HIGH"})
+        
+        # Categorize Readiness
+        if readiness < 50:
+            sorted_metrics.append({"READNS": "LOW"})
+        elif 50 <= readiness <= 70:
+            sorted_metrics.append({"READNS": "NORM"})
+        else:
+            sorted_metrics.append({"READNS": "HIGH"})
+        
+        # Categorize PNS Index
+        if pns_index < -1:
+            sorted_metrics.append({"PNS": "LOW"})
+        elif -1 <= pns_index <= 1:
+            sorted_metrics.append({"PNS": "NORM"})
+        else:
+            sorted_metrics.append({"PNS": "HIGH"})
+        
+        # Categorize SNS Index
+        if sns_index < -1:
+            sorted_metrics.append({"SNS": "LOW"})
+        elif -1 <= sns_index <= 1:
+            sorted_metrics.append({"SNS": "NORM"})
+        else:
+            sorted_metrics.append({"SNS": "HIGH"})
+        
+        return sorted_metrics
+    
+    
+    def display_kubios(self, metrics):
+        self.oled.fill(0)
+        self.invert_text("RESULTS KUBIOS", 8, 0, True)
+        y = 9
+        row = 1
+        
+        sorted_metrics = metrics
+        
+        for metric_dict in sorted_metrics:
+            key, value = list(metric_dict.items())[0]
+            if key == "HR":
+                text = f"{key}: {value:.1f} BPM"
+            else:
+                text = f"{key}: {value}"
+            self.oled.text(text, 4, y * row, 1)
+            row += 1
+            
+        self.oled.show()
+
+
+            
+            
+            
+    
+    
