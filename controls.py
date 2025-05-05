@@ -23,6 +23,10 @@ class Encoder:
         self.sw1.irq(handler=self.sw1_handler, trigger=Pin.IRQ_FALLING, hard=True)
         self.sw2.irq(handler=self.sw2_handler, trigger=Pin.IRQ_FALLING, hard=True)
 
+    """ Rotary Encoder Values : -1 and 1 = Rotation, 2 = Push """
+
+    """SW0 = 3, SW1 = 4, SW2 = 5"""
+
     def handler(self, pin):
         now = time.ticks_ms()
         if time.ticks_diff(now, self.last_a_time) > self.debounce_ms:
