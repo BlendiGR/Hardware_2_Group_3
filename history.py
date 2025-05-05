@@ -51,14 +51,17 @@ class History:
 
     def parse_menu(self):
         self.oled.fill(0)
-        window_size = 4
-        start_idx = max(0, min(self.selected - 1, len(self.history) - window_size))
-        end_idx = min(start_idx + window_size, len(self.history))
         
-        for display_idx, i in enumerate(range(start_idx, end_idx)):
-            self.invert_text(f"{i+1}. Measurement", 1, display_idx * 10, i == self.selected)
+        window_size = 3
+        start = max(0, min(self.selected - 1, len(self.history) - window_size))
+        end = min(start + window_size, len(self.history))
+
+        self.invert_text("History", 30, 0, True)
         
-        self.oled.text("BACK: SW0", 0, 56, 1)
+        for display_xy, i in enumerate(range(start, end)):
+            self.invert_text(f"{i+1}. Measurement", 1, (display_xy+2) * 10, i == self.selected)
+        
+        self.invert_text("BACK: SW0", 0, 56, True)
         self.oled.show()
         
     def show_data(self):
