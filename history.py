@@ -23,9 +23,6 @@ class History:
             self.oled.text(text, x, y, 1)
 
     def append_metrics_to_history(self, metrics_data, time_stamp):
-        if not metrics_data:
-            return
-        
         metrics = metrics_data.copy()
         metrics.append({"time": time_stamp})
         
@@ -42,32 +39,38 @@ class History:
             json.dump(history_data, f)
 
     def read_json(self):
-        self.oled.fill(0)
-        self.invert_text("HISTORY", 30, 0, True)
         with open("history.json", "r") as f:
-            self.history = json.load(f)
-            
-        self.oled.show()
+            content = f.read()
+            if content.strip():
+                self.history = json.load(f)
+            else:
+                self.history = []
+     
 
     def parse_menu(self):
         self.oled.fill(0)
-        
-        window_size = 3
-        start = max(0, min(self.selected - 1, len(self.history) - window_size))
-        end = min(start + window_size, len(self.history))
-
         self.invert_text("History", 30, 0, True)
-        
-        for display_xy, i in enumerate(range(start, end)):
-            self.invert_text(f"{i+1}. Measurement", 1, (display_xy+2) * 10, i == self.selected)
-        
         self.invert_text("BACK: SW0", 0, 56, True)
+        if self.history:
+            window_size = 3
+            start = max(0, min(self.selected - 1, len(self.history) - window_size))
+            end = min(start + window_size, len(self.history))
+            
+            for display_xy, i in enumerate(range(start, end)):
+                self.invert_text(f"{i+1}. Measurement", 1, (display_xy+2) * 10, i == self.selected)
+            
+        else:
+            self.oled.text("Empty", 40, 30, 1)
+        
         self.oled.show()
+        
         
     def show_data(self):
         self.oled.fill(0)
         
-    
+        if not self.history:
+            return
+        
         metrics_list = self.history[self.selected]
         metrics = {}
         for item in metrics_list:
@@ -106,4 +109,5 @@ class History:
                         self.parse_menu()
                         self.data_showing = False
                 elif fifo == 3:
-                    return  # Exit method
+                    return
+
