@@ -23,7 +23,7 @@ class HeartbeatMonitor:
         self.report_interval = 5000
         self.last_report_time = 0
         self.latest_bpm = 0
-        self.smoothing_window = 15
+        self.smoothing_window = 15 
         self.debounce_time = 300 
         self.is_running = False
         self.sample_rate = sample_rate
@@ -59,20 +59,21 @@ class HeartbeatMonitor:
             self.history.append(value)
             if len(self.history) > 250:
                 self.history.pop(0)
-            
+            """Smooth the values"""
             if len(self.history) >= self.smoothing_window:
                 smoothed_value = sum(self.history[-self.smoothing_window:]) / self.smoothing_window
                 self.smoothed_history.append(smoothed_value)
                 if len(self.smoothed_history) > 250:
                     self.smoothed_history.pop(0)
-                
+                """ Apply Threshold """
                 if len(self.smoothed_history) >= 250:
                     minimum = min(self.smoothed_history)
                     maximum = max(self.smoothed_history)
                     signal_range = maximum - minimum
                     threshold_on = minimum + 0.6 * signal_range
                     threshold_off = minimum + 0.4 * signal_range
-                    
+
+                    """ Check for Heartbeat """
                     if not self.beat_detected and smoothed_value > threshold_on and time.ticks_diff(current_time, self.last_beat_time) >= self.debounce_time:
                         self.beat_detected = True
                         if self.last_beat_time != 0:
@@ -82,7 +83,7 @@ class HeartbeatMonitor:
                         self.last_beat_time = current_time
                     elif self.beat_detected and smoothed_value < threshold_off:
                         self.beat_detected = False
-        
+        """ Calculate the BPM """
         if time.ticks_diff(current_time, self.last_report_time) >= self.report_interval:
             if self.intervals:
                 avg_interval = sum(self.intervals) / len(self.intervals)
