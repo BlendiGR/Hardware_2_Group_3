@@ -1,9 +1,12 @@
 {
   "urls": [
-    ["heartbeat_monitor.py", "http://localhost:8000/heartbeat_monitor.py"],
+    ["heartbeat_monitoring.py", "http://localhost:8000/heartbeat_monitoring.py"],
+    ["networker.py", "http://localhost:8000/networker.py"],
+    ["history.py", "http://localhost:8000/history.py"],
+    ["ui.py", "http://localhost:8000/ui.py"],
+    ["hrv_monitoring.py", "http://localhost:8000/hrv_monitoring.py"],
     ["controls.py", "http://localhost:8000/controls.py"],
-    ["main_menu.py", "http://localhost:8000/main_menu.py"],
-    ["test.py", "http://localhost:8000/test.py"],
+    ["main.py", "http://localhost:8000/main.py"],
     ["lib/filefifo.py", "http://localhost:8000/pico-lib/filefifo.py"],	
     ["lib/fifo.py", "http://localhost:8000/pico-lib/fifo.py"],
     ["lib/piotimer.py", "http://localhost:8000/pico-lib/piotimer.py"],
