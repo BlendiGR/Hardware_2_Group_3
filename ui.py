@@ -102,13 +102,10 @@ class UI:
         self.oled.fill_rect(bar_x, bar_y, bar_width, bar_height, 1)
         self.oled.show()
         
-    def kubios_extract(self, json):
+    def kubios_extract(self, metrics):
         sorted_metrics = []
+        health_metrics = metrics
         
-        # Decode MQTT byte string and parse JSON
-        health_metrics = json
-        
-        # Extract metrics from nested JSON structure
         metrics = health_metrics["data"]["analysis"]
         stress = metrics["stress_index"]
         readiness = metrics["readiness"]
@@ -120,10 +117,8 @@ class UI:
         
         self.latest_time = time_stamp
         
-        # Append heart rate (BPM)
         sorted_metrics.append({"HR": heart_rate})
         
-        # Categorize Stress Index
         if stress < 7:
             sorted_metrics.append({"STRESS": "LOW"})
         elif 7 <= stress <= 12:
@@ -131,7 +126,6 @@ class UI:
         else:
             sorted_metrics.append({"STRESS": "HIGH"})
         
-        # Categorize RMSSD
         if rmssd < 20:
             sorted_metrics.append({"RMSSD": "LOW"})
         elif 20 <= rmssd <= 50:
@@ -139,7 +133,6 @@ class UI:
         else:
             sorted_metrics.append({"RMSSD": "HIGH"})
         
-        # Categorize Readiness
         if readiness < 50:
             sorted_metrics.append({"READNS": "LOW"})
         elif 50 <= readiness <= 70:
@@ -147,7 +140,6 @@ class UI:
         else:
             sorted_metrics.append({"READNS": "HIGH"})
         
-        # Categorize PNS Index
         if pns_index < -1:
             sorted_metrics.append({"PNS": "LOW"})
         elif -1 <= pns_index <= 1:
@@ -155,7 +147,6 @@ class UI:
         else:
             sorted_metrics.append({"PNS": "HIGH"})
         
-        # Categorize SNS Index
         if sns_index < -1:
             sorted_metrics.append({"SNS": "LOW"})
         elif -1 <= sns_index <= 1:
