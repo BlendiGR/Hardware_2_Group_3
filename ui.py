@@ -32,7 +32,8 @@ class UI:
         for option in range(len(self.options)):
             self.invert_text(self.options[option], 1, (option + 1) * 10, option == self.selected)
         self.oled.show()
-        
+
+    """draw the realtime ppg when user is measuring heartrate """
     def draw_ppg(self, data, bpm):
 
         if len(data) < 120:
@@ -84,7 +85,8 @@ class UI:
         self.oled.text(f"SDNN: {metrics['SDNN_MS']:.1f} ms", 4, 42, 1)
         self.invert_text("PRESS TO EXIT", 10, 53, True)
         self.oled.show()
-        
+
+    """ loading bar to give a bit of user feedback """
     async def loading_bar(self, seconds):
         self.oled.fill(0)
         self.oled.text("MEASURING..", 4, 10, 1)
@@ -101,7 +103,8 @@ class UI:
             await asyncio.sleep_ms(50)
         self.oled.fill_rect(bar_x, bar_y, bar_width, bar_height, 1)
         self.oled.show()
-        
+
+    """Extract only necessary data from the kubios response """
     def kubios_extract(self, metrics):
         sorted_metrics = []
         health_metrics = metrics
