@@ -64,7 +64,7 @@ class History:
     def show_data(self):
         self.oled.fill(0)
         
-        # Flatten the list of dictionaries
+    
         metrics_list = self.history[self.selected]
         metrics = {}
         for item in metrics_list:
@@ -92,7 +92,7 @@ class History:
                         self.selected -= 1
                         self.parse_menu()
                 elif fifo == 1:
-                    if self.selected < len(self.history) - 1:  # Allow scrolling down
+                    if self.selected < len(self.history) - 1:
                         self.selected += 1
                         self.parse_menu()
                 elif fifo == 2:
