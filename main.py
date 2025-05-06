@@ -11,26 +11,54 @@ import time
 class MainMenu:
     def __init__(self):
         self.running = False
-        self.monitor = HeartbeatMonitor(26, 200) #pin and sampling rate
+        self.monitor = HeartbeatMonitor(26, 200)
         self.hrv_monitor = HRV_Monitor(self.monitor)
         self.enc = Encoder()
         self.history = History(self.enc)
         self.network = Network("KMD652_Group_3", "BlendiFaiezeBlendi", "192.168.3.253")
-        self.ui = UI(self.options, self.selected, self.monitor.get_bpm())
-        
-        self.last_display_time = 0
-        self.last_ppg_time = 0 
-        self.intervals = self.hrv_monitor.intervals
-        self.hrv_metrics = None
-        
-        self.options = ["HEARTRATE", "HRV ANALYSIS", "ADVANCED HRV", "HISTORY"] 
+        self.options = ["HEARTRATE", "HRV ANALYSIS", "ADVANCED HRV", "HISTORY"]
         self.selected = 0
         self.current_menu = "main"
-        
-        self.id = 0 #ID for when sending kubios requests
-        
+        self.ui = UI(self.options, self.selected, self.monitor.get_bpm())
+        self.last_display_time = 0 #### VARIABLE FOR SHOWING REALTIME PPG AND HR
+        self.last_ppg_time = 0 #### THIS IS ALSO A VARIABLE FOR THE REALTIME PPG
+        self.hrv_metrics = None #### METRICS AFTER MEASURING HRV TO BE SHOWN ON THE SCREEN
+        self.intervals = self.hrv_monitor.intervals #### INTERVALS TO BE SENT TO KUBIOS 
+        self.id = 0  #### THIS IS THE ID WHEN SENDING KUBIOS REQUESTS
+        self.kubios_extracted = None #### THE CLEAN DATA FROM KUBIOS TO BE SHOWN ON THE DISPLAY
 
-    def draw_options(self):
+    def handle_input(self, fifo):
+        """  HANDLE ENCODER INPUT BASED ON CURRENT MENU   """
+        if self.current_menu == "main":
+            if fifo == 1 and self.selected < len(self.options) - 1:
+                self.selected += 1
+            elif fifo == -1 and self.selected > 0:
+                self.selected -= 1
+            elif fifo == 2:
+                if self.selected == 0:
+                    self.running = True
+                    self.monitor.start()
+                    self.current_menu = "heart_rate"
+                elif self.selected == 1:
+                    self.current_menu = "hrv"
+                elif self.selected == 2:
+                    self.current_menu = "kubios"
+                elif self.selected == 3:
+                    self.history.run()
+        elif self.current_menu == "heart_rate":
+            if fifo == 2:
+                self.running = False
+                self.monitor.stop()
+                self.current_menu = "main"
+        elif self.current_menu == "hrv":
+            if fifo == 2:
+                self.current_menu = "measuring_hrv"
+        elif self.current_menu == "hrv_results" or self.current_menu == "kubios_results":
+            if fifo == 2:
+                self.current_menu = "main"
+
+    def update_ui(self):
+        """  UPDATE THE UI BASED ON MENU STATE  """
         self.ui.selected = self.selected
         self.ui.bpm = self.monitor.get_bpm()
         if self.current_menu == "main":
@@ -39,100 +67,66 @@ class MainMenu:
             self.ui.hrv_menu()
         elif self.current_menu == "measuring_hrv":
             self.ui.hrv_measuring()
+        elif self.current_menu == "heart_rate":
+            bpm = self.monitor.get_bpm()
+            self.ui.draw_ppg(self.monitor.smoothed_history, bpm)
+        elif self.current_menu == "hrv_results":
+            self.ui.display_hrv_metrics(self.hrv_metrics)
+        elif self.current_menu == "kubios_results":
+            self.ui.display_kubios(self.kubios_extracted)
         elif self.current_menu == "kubios":
             self.ui.hrv_menu()
-            
-            
-
+ 
     async def run(self):
-        self.draw_options()
+        """   MAIN LOOP  """
+        self.update_ui()  
         while True:
+            # Process encoder input
             while self.enc.fifo.has_data():
                 fifo = self.enc.fifo.get()
-                if fifo == 1 and self.selected < len(self.options) - 1 and self.current_menu == "main":
-                    self.selected += 1
-                    self.draw_options()
-                elif fifo == -1 and self.selected > 0 and self.current_menu == "main":
-                    self.selected -= 1
-                    self.draw_options()
-                elif fifo == 2:
-                    if self.current_menu == "main":
-                        if self.selected == 0:
-                            self.running = True
-                            self.monitor.start()
-                            self.current_menu = "heart_rate"
-                        elif self.selected == 1:
-                            self.current_menu = "hrv"
-                            self.draw_options()
-                        elif self.selected == 2:
-                            self.current_menu = "kubios"
-                            self.draw_options()
-                        elif self.selected == 3:
-                            self.history.run()
-                    """ Start Calculating HRV, when user presses Start """        
-                    elif self.current_menu == "hrv":
+                self.handle_input(fifo)
+                                                  ##### HANDLE BASIC HRV MEASUREMENT ####
+                if self.current_menu == "measuring_hrv":
+                    try:
                         self.network.connect_mqtt()
-                        self.current_menu = "measuring_hrv"
-                        self.draw_options()
                         results = await asyncio.gather(
                             self.ui.loading_bar(30),
                             self.hrv_monitor.calculate_all_metrics()
                         )
                         self.hrv_metrics = results[1]
                         self.network.send_message("hrv/metrics", self.hrv_metrics)
-                        """ Show results to user until user presses Button to leave """
-                        while True:
-                            self.ui.display_hrv_metrics(self.hrv_metrics)
-                            if self.enc.fifo.has_data():
-                                fifo = self.enc.fifo.get()
-                                if fifo == 2:
-                                    break
-                            await asyncio.sleep(0.1)
+                        self.current_menu = "hrv_results"
+                    except Exception as e:
+                        print(f"HRV measurement failed: {e}")
                         self.current_menu = "main"
-                        self.draw_options()
-                    """ If user is currently measuring heartrate, stop it """    
-                    elif self.current_menu == "heart_rate":
-                        self.running = False
-                        self.monitor.stop()
-                        self.current_menu = "main"
-                        self.draw_options()
-                    """ Start gathering data and send it to kubios cloud when user presses Start """
-                    elif self.current_menu == "kubios":
+                                                    ##### HANDLE KUBIOS ADVANCED HRV #####
+                elif self.current_menu == "kubios":
+                    try:
                         self.network.connect_mqtt(21883)
                         results = await asyncio.gather(
                             self.ui.loading_bar(30),
                             self.hrv_monitor.collect_data()
                         )
-                        self.id +=1
+                        self.id += 1
                         self.intervals = self.hrv_monitor.intervals
                         kubios_response = self.network.send_kubios(self.id, self.intervals)
-                        kubios_extracted = self.ui.kubios_extract(kubios_response)
-                        self.history.append_metrics_to_history(kubios_extracted, self.ui.latest_time) # Add it to the history so the user can view later
-            
-                    """ Display results until user presses Button to leave """
-                        while True:
-                            self.ui.display_kubios(kubios_extracted)
-                            if self.enc.fifo.has_data():
-                                fifo = self.enc.fifo.get()
-                                if fifo == 2:
-                                    break
-                            await asyncio.sleep(0.1)
+                        self.kubios_extracted = self.ui.kubios_extract(kubios_response)
+                        self.history.append_metrics_to_history(self.kubios_extracted, self.ui.latest_time)
+                        self.current_menu = "kubios_results"
+                    except Exception as e:
+                        print(f"Kubios processing failed: {e}")
                         self.current_menu = "main"
-                        self.draw_options()
-                
-            """ handle the real-time BPM and graph drawing when measuring heartrate"""
-            if self.current_menu == "heart_rate" and self.running:
-                self.monitor.process()
-                current_time = time.ticks_ms()
-                if time.ticks_diff(current_time, self.last_ppg_time) >= 50:
-                    bpm = self.monitor.get_bpm()
-                    self.ui.draw_ppg(self.monitor.smoothed_history, bpm)
-                    self.last_ppg_time = current_time
 
-            if self.current_menu != "heart_rate":
-                current_time = time.ticks_ms()
+            #### UPDATE THE PPG AND HEARTRATE ####
+            current_time = time.ticks_ms()
+            if self.current_menu == "heart_rate" and self.running:
+                if time.ticks_diff(current_time, self.last_ppg_time) >= 50:
+                    self.monitor.process()
+                    self.update_ui()
+                    self.last_ppg_time = current_time
+            else:
                 if time.ticks_diff(current_time, self.last_display_time) >= 100:
-                    self.draw_options()
+                    self.update_ui()
                     self.last_display_time = current_time
 
             await asyncio.sleep_ms(5)
