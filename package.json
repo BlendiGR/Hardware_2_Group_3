@@ -1,5 +1,6 @@
 {
   "urls": [
+    ["history.json", "http://localhost:8000/history.json"],
     ["heartbeat_monitoring.py", "http://localhost:8000/heartbeat_monitoring.py"],
     ["networker.py", "http://localhost:8000/networker.py"],
     ["history.py", "http://localhost:8000/history.py"],
