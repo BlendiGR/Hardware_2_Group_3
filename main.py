@@ -15,7 +15,7 @@ class MainMenu:
         self.hrv_monitor = HRV_Monitor(self.monitor)
         self.enc = Encoder()
         self.history = History(self.enc)
-        self.network = Network("KMD652_Group_3", "BlendiFaiezeBlendi", "192.168.3.253")
+        self.network = Network("KMD652_Group_3", "BlendiFaiezeVeeti", "192.168.3.253")
         self.options = ["HEARTRATE", "HRV ANALYSIS", "ADVANCED HRV", "HISTORY"]
         self.selected = 0
         self.current_menu = "main"
@@ -42,7 +42,7 @@ class MainMenu:
                 elif self.selected == 1:
                     self.current_menu = "hrv"
                 elif self.selected == 2:
-                    self.current_menu = "kubios"
+                    self.current_menu = "kubios_menu"
                 elif self.selected == 3:
                     self.history.run()
         elif self.current_menu == "heart_rate":
@@ -53,6 +53,9 @@ class MainMenu:
         elif self.current_menu == "hrv":
             if fifo == 2:
                 self.current_menu = "measuring_hrv"
+        elif self.current_menu == "kubios_menu":
+            if fifo == 2:
+                self.current_menu = "kubios_measure"
         elif self.current_menu == "hrv_results" or self.current_menu == "kubios_results":
             if fifo == 2:
                 self.current_menu = "main"
@@ -65,8 +68,6 @@ class MainMenu:
             self.ui.main_menu()
         elif self.current_menu == "hrv":
             self.ui.hrv_menu()
-        elif self.current_menu == "measuring_hrv":
-            self.ui.hrv_measuring()
         elif self.current_menu == "heart_rate":
             bpm = self.monitor.get_bpm()
             self.ui.draw_ppg(self.monitor.smoothed_history, bpm)
@@ -74,12 +75,13 @@ class MainMenu:
             self.ui.display_hrv_metrics(self.hrv_metrics)
         elif self.current_menu == "kubios_results":
             self.ui.display_kubios(self.kubios_extracted)
-        elif self.current_menu == "kubios":
+        elif self.current_menu == "kubios_menu":
             self.ui.hrv_menu()
  
     async def run(self):
         """   MAIN LOOP  """
-        self.update_ui()  
+        self.network.connect_wifi()
+        self.update_ui()
         while True:
             # Process encoder input
             while self.enc.fifo.has_data():
@@ -100,7 +102,7 @@ class MainMenu:
                         print(f"HRV measurement failed: {e}")
                         self.current_menu = "main"
                                                     ##### HANDLE KUBIOS ADVANCED HRV #####
-                elif self.current_menu == "kubios":
+                elif self.current_menu == "kubios_measure":
                     try:
                         self.network.connect_mqtt(21883)
                         results = await asyncio.gather(

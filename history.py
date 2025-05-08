@@ -24,7 +24,22 @@ class History:
 
     def append_metrics_to_history(self, metrics_data, time_stamp):
         metrics = metrics_data.copy()
-        metrics.append({"time": time_stamp})
+        
+        date = time_stamp[:10]
+        year, month, day = map(int, date.split("-"))
+        
+        time_part = time_stamp.split("T")[1]
+        hour, minute = map(int, time_part.split(":")[:2])
+        
+        total_minutes = hour * 60 + minute + 3 * 60
+        
+        new_hour = total_minutes // 60
+        new_minute = total_minutes % 60
+        
+        formatted = "{:02d}-{:02d}-{:04d} {:02d}:{:02d}".format(
+            day, month, year, new_hour, new_minute
+        )
+        metrics.append({"time": formatted})
         
         history_data = []
         try:
@@ -42,9 +57,10 @@ class History:
         with open("history.json", "r") as f:
             content = f.read()
             if content.strip():
-                self.history = json.load(f)
+                self.history = json.loads(content)
             else:
                 self.history = []
+
      
 
     def parse_menu(self):
@@ -76,9 +92,9 @@ class History:
         for item in metrics_list:
             metrics.update(item)
         
-        time = metrics["time"][:10]
+        time = metrics["time"]
         
-        self.invert_text(time, 20, 0, True)
+        self.invert_text(time, 0, 0, True)
         self.oled.text(f"HR: {metrics['HR']:.1f}", 4, 16, 1)
         self.oled.text(f"STRESS: {metrics['STRESS']}", 4, 24, 1)
         self.oled.text(f"RMSSD: {metrics['RMSSD']}", 4, 32, 1)
@@ -110,4 +126,3 @@ class History:
                         self.data_showing = False
                 elif fifo == 3:
                     return
-
