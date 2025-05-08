@@ -124,7 +124,7 @@ class UI:
         
         if stress < 7:
             sorted_metrics.append({"STRESS": "LOW"})
-        elif 7 <= stress <= 12:
+        elif 7 <= stress <= 15:
             sorted_metrics.append({"STRESS": "NORM"})
         else:
             sorted_metrics.append({"STRESS": "HIGH"})

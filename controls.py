@@ -38,7 +38,7 @@ class Encoder:
 
     def push_handler(self, pin):
         now = time.ticks_ms()
-        if time.ticks_diff(now, self.last_push_time) > self.debounce_ms:
+        if time.ticks_diff(now, self.last_push_time) > 300:
             self.fifo.put(2)
             self.last_push_time = now
 

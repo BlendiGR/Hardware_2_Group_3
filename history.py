@@ -2,6 +2,7 @@ from fifo import Fifo
 import json
 from machine import Pin, I2C
 from ssd1306 import SSD1306_I2C
+import time
 
 class History:
     def __init__(self, encoder):
@@ -22,22 +23,23 @@ class History:
         else:
             self.oled.text(text, x, y, 1)
 
-    def append_metrics_to_history(self, metrics_data, time_stamp):
-        metrics = metrics_data.copy()
-        
-        date = time_stamp[:10]
-        year, month, day = map(int, date.split("-"))
-        
-        time_part = time_stamp.split("T")[1]
-        hour, minute = map(int, time_part.split(":")[:2])
-        
-        total_minutes = hour * 60 + minute + 3 * 60
-        
-        new_hour = total_minutes // 60
-        new_minute = total_minutes % 60
+    def append_metrics_to_history(self, metrics_data):
+        ### KUBIOS OR HRV ?
+        if isinstance(metrics_data, list):  ######Kubios data
+            metrics = metrics_data.copy()
+        else:  ###### HRV data
+            metrics = [
+                {"HR": metrics_data.get("MEAN_HR_BPM", 0)},
+                {"RMSSD": metrics_data.get("RMSSD_MS", 0)},
+                {"PPI": metrics_data.get("MEAN_PPI_MS", 0)},
+                {"SDNN": metrics_data.get("SDNN_MS", 0)}
+            ]
+
+        local_time = time.localtime()
+        year, month, day, hour, minute = local_time[0], local_time[1], local_time[2], local_time[3], local_time[4]
         
         formatted = "{:02d}-{:02d}-{:04d} {:02d}:{:02d}".format(
-            day, month, year, new_hour, new_minute
+            day, month, year, hour, minute
         )
         metrics.append({"time": formatted})
         
@@ -61,8 +63,6 @@ class History:
             else:
                 self.history = []
 
-     
-
     def parse_menu(self):
         self.oled.fill(0)
         self.invert_text("History", 30, 0, True)
@@ -80,7 +80,6 @@ class History:
         
         self.oled.show()
         
-        
     def show_data(self):
         self.oled.fill(0)
         
@@ -94,13 +93,25 @@ class History:
         
         time = metrics["time"]
         
+        ##### CHECK IF IT IS KUBIOS OR HRV BASED ON WHAT KEYS ARE INSIDE THE DICTIONARY
+        is_hrv = "PPI" in metrics or "SDNN" in metrics
+        
         self.invert_text(time, 0, 0, True)
-        self.oled.text(f"HR: {metrics['HR']:.1f}", 4, 16, 1)
-        self.oled.text(f"STRESS: {metrics['STRESS']}", 4, 24, 1)
-        self.oled.text(f"RMSSD: {metrics['RMSSD']}", 4, 32, 1)
-        self.oled.text(f"READNS: {metrics['READNS']}", 4, 40, 1)
-        self.oled.text(f"PNS: {metrics['PNS']}", 4, 48, 1)
-        self.oled.text(f"SNS: {metrics['SNS']}", 4, 56, 1)
+        if is_hrv:
+            
+            self.oled.text(f"HR: {metrics.get('HR', 0):.1f}", 4, 16, 1)
+            self.oled.text(f"RMSSD: {metrics.get('RMSSD', 0):.1f}", 4, 24, 1)
+            self.oled.text(f"PPI: {metrics.get('PPI', 0):.1f}", 4, 32, 1)
+            self.oled.text(f"SDNN: {metrics.get('SDNN', 0):.1f}", 4, 40, 1)
+        else:
+            
+            self.oled.text(f"HR: {metrics.get('HR', 0):.1f}", 4, 16, 1)
+            self.oled.text(f"STRESS: {metrics.get('STRESS', 'N/A')}", 4, 24, 1)
+            self.oled.text(f"RMSSD: {metrics.get('RMSSD', 'N/A')}", 4, 32, 1)
+            self.oled.text(f"READNS: {metrics.get('READNS', 'N/A')}", 4, 40, 1)
+            self.oled.text(f"PNS: {metrics.get('PNS', 'N/A')}", 4, 48, 1)
+            self.oled.text(f"SNS: {metrics.get('SNS', 'N/A')}", 4, 56, 1)
+        
         self.oled.show()
 
     def run(self):

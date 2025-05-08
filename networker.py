@@ -4,6 +4,7 @@ import json
 import urequests as requests
 import time
 from umqtt.simple import MQTTClient
+import random
 
 class Network:
     def __init__(self, ssid, password, broker_ip, client_id=""):
@@ -36,13 +37,6 @@ class Network:
         print(f"Received MQTT message on topic {topic}: {msg}")
         self.last_message = json.loads(msg.decode('utf-8'))
 
-    def send_message(self, topic, data):
-        message_json = json.dumps(data).encode("utf-8")
-        if self.mqtt_client:
-            self.mqtt_client.publish(topic, message_json)
-            print(f"Sending to MQTT: {topic} -> {message_json}")
-        else:
-            print("MQTT client not connected.")
 
     def send_kubios(self, id, data, response_topic="kubios-response", timeout=10):
         raw_data = {
@@ -74,3 +68,46 @@ class Network:
 
         print("Timeout waiting for Kubios response.")
         return None
+    
+    def send_hrv_data(self, metrics, topic):
+        
+        self.mqtt_client.subscribe(topic.encode('utf-8'))
+        
+        data ={
+            "id": time.time(),
+            "timestamp": random.randint(1, 1000),
+            "mean_hr": metrics["MEAN_HR_BPM"],
+            "mean_ppi": metrics["MEAN_PPI_MS"],
+            "rmssd": metrics["RMSSD_MS"],
+            "sdnn": metrics["SDNN_MS"],
+            }
+        
+        
+        message_json = json.dumps(data)
+        if self.mqtt_client:
+            self.mqtt_client.publish(topic, message_json)
+            print(f"Sending to MQTT: {topic} -> {message_json}")
+        else:
+            print("MQTT client not connected.")
+
+    def send_kubios_data(self, health_metrics, topic):
+        self.mqtt_client.subscribe(topic.encode('utf-8'))
+        metrics = health_metrics["data"]["analysis"]
+        
+        data = {
+            "id": round(time.time()),
+            "timestamp": random.randint(1, 1000),
+            "mean_hr": metrics["mean_hr_bpm"],
+            "mean_ppi": metrics["mean_rr_ms"],
+            "rmssd": metrics["rmssd_ms"],
+            "sdnn": metrics["sdnn_ms"],
+            "sns": metrics["sns_index"],
+            "pns": metrics["pns_index"],
+        }
+        
+        message_json = json.dumps(data)
+        if self.mqtt_client:
+            self.mqtt_client.publish(topic, message_json)
+            print(f"Sending to MQTT: {topic} -> {message_json}")
+        else:
+            print("MQTT client not connected.")

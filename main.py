@@ -90,13 +90,14 @@ class MainMenu:
                                                   ##### HANDLE BASIC HRV MEASUREMENT ####
                 if self.current_menu == "measuring_hrv":
                     try:
-                        self.network.connect_mqtt()
+                        self.network.connect_mqtt(21883)
                         results = await asyncio.gather(
                             self.ui.loading_bar(30),
                             self.hrv_monitor.calculate_all_metrics()
                         )
                         self.hrv_metrics = results[1]
-                        self.network.send_message("hrv/metrics", self.hrv_metrics)
+                        self.network.send_hrv_data(self.hrv_metrics, "hr-data")
+                        self.history.append_metrics_to_history(self.hrv_metrics)
                         self.current_menu = "hrv_results"
                     except Exception as e:
                         print(f"HRV measurement failed: {e}")
@@ -112,8 +113,9 @@ class MainMenu:
                         self.id += 1
                         self.intervals = self.hrv_monitor.intervals
                         kubios_response = self.network.send_kubios(self.id, self.intervals)
+                        self.network.send_kubios_data(kubios_response, "hr-data")
                         self.kubios_extracted = self.ui.kubios_extract(kubios_response)
-                        self.history.append_metrics_to_history(self.kubios_extracted, self.ui.latest_time)
+                        self.history.append_metrics_to_history(self.kubios_extracted)
                         self.current_menu = "kubios_results"
                     except Exception as e:
                         print(f"Kubios processing failed: {e}")
